@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PLP TAX INVOICE</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="controls-header">
+            <h1>PLP TAX INVOICE</h1>
+            <div class="controls">
+                <button id="newInvoiceBtn" class="btn btn-primary">New Invoice</button>
+                <button id="saveCompanyBtn" class="btn btn-info">Save Company Details</button>
+                <button id="setExportFolderBtn" class="btn btn-secondary">Set Export Folder</button>
+                <button id="saveDraftBtn" class="btn btn-secondary">Save Draft</button>
+                <button id="loadInvoiceBtn" class="btn btn-secondary">Load Invoice</button>
+                <button id="exportPdfBtn" class="btn btn-success">Export PDF</button>
+                <button id="printBtn" class="btn btn-warning">Print</button>
+            </div>
+        </header>
+
+        <main class="invoice-workspace">
+            <div class="invoice-form">
+                <!-- Company Information -->
+                <div class="company-section">
+                    <div class="company-info">
+                        <input type="text" id="companyName" placeholder="Company Name" class="input-field">
+                        <input type="text" id="officeAddress" placeholder="Office Address" class="input-field">
+                        <input type="text" id="cityCountry" placeholder="City & Country" class="input-field">
+                        <input type="text" id="contactNumber" placeholder="Contact Number" class="input-field">
+                        <input type="text" id="trn" placeholder="TRN" class="input-field" maxlength="15">
+                    </div>
+                    <div class="invoice-details">
+                        <div class="detail-row">
+                            <label>Invoice No:</label>
+                            <input type="text" id="invoiceNo" class="input-field" placeholder="Auto-generated or enter manually">
+                        </div>
+                        <div class="detail-row">
+                            <label>Date:</label>
+                            <input type="date" id="invoiceDate" class="input-field">
+                        </div>
+                        <div class="detail-row">
+                            <label>Payment Mode:</label>
+                            <select id="paymentMode" class="input-field">
+                                <option value="">Select</option>
+                                <option value="Cash">Cash</option>
+                                <option value="Bank Transfer">Bank Transfer</option>
+                                <option value="Credit Card">Credit Card</option>
+                                <option value="Cheque">Cheque</option>
+                            </select>
+                        </div>
+                        <div class="detail-row">
+                            <label>Currency:</label>
+                            <input type="text" id="currency" value="AED" readonly class="input-field readonly">
+                        </div>
+                        <div class="detail-row">
+                            <label>Due Date:</label>
+                            <input type="date" id="dueDate" class="input-field">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Client Section -->
+                <div class="client-section">
+                    <div class="client-input">
+                        <label>Client:</label>
+                        <div class="client-controls">
+                            <select id="clientSelect" class="input-field">
+                                <option value="">Select Client</option>
+                                <option value="import">+ Import Clients from Excel</option>
+                            </select>
+                            <button id="addClientBtn" class="btn btn-small">📁</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Context Menu for Client Management -->
+                <div id="clientContextMenu" class="context-menu" style="display: none;">
+                    <div class="context-menu-header">Client Management</div>
+                    <div class="context-menu-section">
+                        <div class="context-menu-item" id="manageClientsBtn">👥 Manage All Clients</div>
+                    </div>
+                    <div class="context-menu-divider"></div>
+                    <div class="context-menu-section">
+                        <div class="context-menu-item" id="editCurrentClientBtn">✏️ Edit Current Client</div>
+                        <div class="context-menu-item" id="deleteCurrentClientBtn">🗑️ Delete Current Client</div>
+                    </div>
+                </div>
+
+                <!-- Client Management Modal -->
+                <div id="clientManagementModal" class="modal" style="display: none;">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2>Client Management</h2>
+                            <button class="modal-close" id="closeClientModalBtn">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="client-list-controls">
+                                <button id="selectAllClientsBtn" class="btn btn-small">Select All</button>
+                                <button id="deselectAllClientsBtn" class="btn btn-small">Deselect All</button>
+                                <button id="deleteSelectedClientsBtn" class="btn btn-danger btn-small">Delete Selected</button>
+                            </div>
+                            <div class="client-list" id="clientListContainer">
+                                <!-- Client list will be populated here -->
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button id="closeClientModalBtn2" class="btn btn-secondary">Close</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Items Table -->
+                <div class="items-section">
+                    <table id="itemsTable" class="items-table">
+                        <thead>
+                            <tr>
+                                <th>Sl</th>
+                                <th>Service</th>
+                                <th>Description (Month)</th>
+                                <th>Amount</th>
+                                <th>5% VAT</th>
+                                <th>Total</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="itemsBody">
+                            <tr class="item-row">
+                                <td>1</td>
+                                <td>
+                                    <select class="input-field service-input">
+                                        <option value="">Select Service</option>
+                                        <option value="Recreational Facility">Recreational Facility</option>
+                                        <option value="Learner Assistance">Learner Assistance</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select class="input-field description-input">
+                                        <option value="">Select Month</option>
+                                        <option value="Payment for Month of January">Payment for Month of January</option>
+                                        <option value="Payment for Month of February">Payment for Month of February</option>
+                                        <option value="Payment for Month of March">Payment for Month of March</option>
+                                        <option value="Payment for Month of April">Payment for Month of April</option>
+                                        <option value="Payment for Month of May">Payment for Month of May</option>
+                                        <option value="Payment for Month of June">Payment for Month of June</option>
+                                        <option value="Payment for Month of July">Payment for Month of July</option>
+                                        <option value="Payment for Month of August">Payment for Month of August</option>
+                                        <option value="Payment for Month of September">Payment for Month of September</option>
+                                        <option value="Payment for Month of October">Payment for Month of October</option>
+                                        <option value="Payment for Month of November">Payment for Month of November</option>
+                                        <option value="Payment for Month of December">Payment for Month of December</option>
+                                    </select>
+                                </td>
+                                <td><input type="number" class="input-field amount-input" placeholder="0.00" step="0.01"></td>
+                                <td class="vat-cell">0.00</td>
+                                <td class="total-cell">0.00</td>
+                                <td><button class="btn btn-small btn-danger remove-row">✕</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <button id="addRowBtn" class="btn btn-secondary">Add Row</button>
+                </div>
+
+                <!-- Summary Section -->
+                <div class="summary-section">
+                    <div class="amount-in-words">
+                        <label>Amount Chargeable (in words):</label>
+                        <div id="amountInWords" class="words-display">Zero Dirhams Only</div>
+                    </div>
+                    <div class="totals">
+                        <div class="total-row">
+                            <label>Subtotal:</label>
+                            <span id="subtotal">0.00</span>
+                        </div>
+                        <div class="total-row">
+                            <label>VAT 5%:</label>
+                            <span id="vatTotal">0.00</span>
+                        </div>
+                        <div class="total-row grand-total">
+                            <label>Grand Total:</label>
+                            <span id="grandTotal">0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Section -->
+                <div class="footer-section">
+                    <div class="declaration">
+                        <p><strong>Declaration:</strong> This is to certify that the particulars given above are true and correct.</p>
+                    </div>
+                    <div class="signature">
+                        <div class="signature-line">Authorized Signatory</div>
+                    </div>
+                    <div class="footer-note">
+                        <p>This is a Computer Generated Invoice</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Hidden Print/Export Template -->
+    <div id="invoiceTemplate" style="display: none;">
+        <div class="invoice-page">
+            <!-- Original Copy -->
+            <div class="invoice-copy">
+                <div class="invoice-header">
+                    <h2 class="invoice-title">TAX INVOICE</h2>
+                    <div class="header-content">
+                        <div class="company-details">
+                            <div class="company-field" data-field="companyName"></div>
+                            <div class="company-field" data-field="officeAddress"></div>
+                            <div class="company-field" data-field="cityCountry"></div>
+                            <div class="company-field" data-field="contactNumber"></div>
+                            <div class="company-field">TRN: <span data-field="trn"></span></div>
+                        </div>
+                        <div class="invoice-meta">
+                            <div class="meta-row">Invoice No: <span data-field="invoiceNo"></span></div>
+                            <div class="meta-row">Date: <span data-field="invoiceDate"></span></div>
+                            <div class="meta-row">Payment Mode: <span data-field="paymentMode"></span></div>
+                            <div class="meta-row">Currency: <span data-field="currency"></span></div>
+                            <div class="meta-row">Due Date: <span data-field="dueDate"></span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="client-section-print">
+                    <div class="client-label">Client:</div>
+                    <div class="client-name" data-field="clientName"></div>
+                    <div class="client-details">
+                        <div class="client-address" data-field="clientAddress"></div>
+                        <div class="client-phone" data-field="clientPhone"></div>
+                    </div>
+                </div>
+
+                <table class="items-table-print">
+                    <thead>
+                        <tr>
+                            <th>Sl</th>
+                            <th>Service</th>
+                            <th>Description (Month)</th>
+                            <th>Amount</th>
+                            <th>5% VAT</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="printItemsBody">
+                    </tbody>
+                </table>
+
+                <div class="summary-print">
+                    <div class="amount-words-print">
+                        <strong>Amount Chargeable (in words):</strong>
+                        <div id="printAmountInWords"></div>
+                    </div>
+                    <div class="totals-print">
+                        <div class="total-row-print">Subtotal: <span id="printSubtotal"></span></div>
+                        <div class="total-row-print">VAT 5%: <span id="printVatTotal"></span></div>
+                        <div class="total-row-print grand-total-print">Grand Total: <span id="printGrandTotal"></span></div>
+                    </div>
+                </div>
+
+                <div class="footer-print">
+                    <div class="declaration-print">
+                        <p><strong>Declaration:</strong> This is to certify that the particulars given above are true and correct.</p>
+                    </div>
+                    <div class="signature-print">
+                        <div class="signature-line-print">Authorized Signatory</div>
+                    </div>
+                    <div class="footer-note-print">
+                        <p>This is a Computer Generated Invoice</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Duplicate Copy -->
+            <div class="invoice-copy">
+                <div class="invoice-header">
+                    <h2 class="invoice-title">TAX INVOICE</h2>
+                    <div class="copy-label">Duplicate Copy</div>
+                    <div class="header-content">
+                        <div class="company-details">
+                            <div class="company-field" data-field="companyName"></div>
+                            <div class="company-field" data-field="officeAddress"></div>
+                            <div class="company-field" data-field="cityCountry"></div>
+                            <div class="company-field" data-field="contactNumber"></div>
+                            <div class="company-field">TRN: <span data-field="trn"></span></div>
+                        </div>
+                        <div class="invoice-meta">
+                            <div class="meta-row">Invoice No: <span data-field="invoiceNo"></span></div>
+                            <div class="meta-row">Date: <span data-field="invoiceDate"></span></div>
+                            <div class="meta-row">Payment Mode: <span data-field="paymentMode"></span></div>
+                            <div class="meta-row">Currency: <span data-field="currency"></span></div>
+                            <div class="meta-row">Due Date: <span data-field="dueDate"></span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="client-section-print">
+                    <div class="client-label">Client:</div>
+                    <div class="client-name" data-field="clientName"></div>
+                    <div class="client-details">
+                        <div class="client-address" data-field="clientAddress"></div>
+                        <div class="client-phone" data-field="clientPhone"></div>
+                    </div>
+                </div>
+
+                <table class="items-table-print">
+                    <thead>
+                        <tr>
+                            <th>Sl</th>
+                            <th>Service</th>
+                            <th>Description (Month)</th>
+                            <th>Amount</th>
+                            <th>5% VAT</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="printItemsBody2">
+                    </tbody>
+                </table>
+
+                <div class="summary-print">
+                    <div class="amount-words-print">
+                        <strong>Amount Chargeable (in words):</strong>
+                        <div id="printAmountInWords2"></div>
+                    </div>
+                    <div class="totals-print">
+                        <div class="total-row-print">Subtotal: <span id="printSubtotal2"></span></div>
+                        <div class="total-row-print">VAT 5%: <span id="printVatTotal2"></span></div>
+                        <div class="total-row-print grand-total-print">Grand Total: <span id="printGrandTotal2"></span></div>
+                    </div>
+                </div>
+
+                <div class="footer-print">
+                    <div class="declaration-print">
+                        <p><strong>Declaration:</strong> This is to certify that the particulars given above are true and correct.</p>
+                    </div>
+                    <div class="signature-print">
+                        <div class="signature-line-print">Authorized Signatory</div>
+                    </div>
+                    <div class="footer-note-print">
+                        <p>This is a Computer Generated Invoice</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden file input for Excel import -->
+    <input type="file" id="excelFileInput" style="display: none;" accept=".xlsx,.xls,.csv">
+    
+    <!-- Hidden folder input for export location -->
+    <input type="file" id="folderInput" style="display: none;" webkitdirectory directory multiple>
+    
+    <!-- Hidden file input for PDF export -->
+    <input type="file" id="fileInput" style="display: none;" accept=".pdf">
+
+    <script src="script.js"></script>
+</body>
+</html>
